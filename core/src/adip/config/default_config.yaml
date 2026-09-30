@@ -1,0 +1,30 @@
+loader:
+  chunk_size: 100000
+  max_file_size_mb: 1024
+  max_rows: null        # null = read everything
+  excel_sheet: 0        # sheet index or name
+
+quality:
+  outlier_method: iqr   # iqr | zscore | isolation_forest
+  iqr_multiplier: 1.5
+  zscore_threshold: 3.0
+  missing_warn_pct: 5.0
+  missing_critical_pct: 40.0
+  high_cardinality_ratio: 0.5     # unique / non-null
+  high_cardinality_min_unique: 50
+
+eda:
+  sample_size: 50000              # max rows used for plots / correlations
+  correlation_threshold: 0.85
+  max_categories_shown: 15
+  histogram_bins: 30
+
+
+features:
+  id_unique_pct: 99.5             # >= this % unique => likely identifier
+  onehot_max_unique: 10           # up to this many categories => one-hot
+  skew_threshold: 1.0
+  near_constant_pct: 99.0
+  robust_outlier_pct: 5.0         # outlier % above this => RobustScaler
+  target_regression_min_unique: 10
+  max_correlation_recommendations: 20

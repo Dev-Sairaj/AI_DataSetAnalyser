@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ADIP Report - {{ r.dataset.name }}</title>
+<style>
+  :root { --bg:#F3F4F6; --card:#fff; --text:#111827; --muted:#6B7280; --line:#E5E7EB;
+          --primary:#4F46E5; --crit:#DC2626; --warn:#D97706; --info:#2563EB; --ok:#059669; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         background:var(--bg); color:var(--text); line-height:1.5; }
+  .wrap { max-width:1100px; margin:0 auto; padding:0 20px; }
+  .hero { background:linear-gradient(135deg,#312E81,#4F46E5); color:#fff; padding:36px 0; }
+  .hero .eyebrow { margin:0; opacity:.8; font-size:13px; letter-spacing:.08em; text-transform:uppercase; }
+  .hero h1 { margin:6px 0; font-size:30px; word-break:break-all; }
+  .hero .sub { margin:0; opacity:.8; font-size:14px; }
+  nav { position:sticky; top:0; background:#fff; border-bottom:1px solid var(--line); z-index:5; }
+  nav .wrap { display:flex; gap:20px; overflow-x:auto; padding-top:10px; padding-bottom:10px; }
+  nav a { color:var(--muted); text-decoration:none; font-size:14px; white-space:nowrap; }
+  nav a:hover { color:var(--primary); }
+  section { background:var(--card); border-radius:12px; padding:24px; margin:24px 0;
+            box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  h2 { margin:0 0 16px; font-size:21px; }
+  h3 { margin:24px 0 10px; font-size:16px; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+  .kpi { border:1px solid var(--line); border-radius:10px; padding:14px; }
+  .kpi .v { font-size:24px; font-weight:700; }
+  .kpi .l { color:var(--muted); font-size:13px; }
+  table { border-collapse:collapse; width:100%; font-size:14px; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { background:#F9FAFB; font-weight:600; white-space:nowrap; }
+  .scroll { overflow-x:auto; }
+  .badge { display:inline-block; padding:2px 9px; border-radius:99px; font-size:12px; font-weight:600; color:#fff; }
+  .badge.critical { background:var(--crit); } .badge.warning { background:var(--warn); }
+  .badge.info { background:var(--info); }
+  .grade { font-size:44px; font-weight:800; }
+  .grade-A,.grade-B { color:var(--ok); } .grade-C,.grade-D { color:var(--warn); } .grade-F { color:var(--crit); }
+  .score-row { display:flex; gap:32px; align-items:center; flex-wrap:wrap; }
+  .bar { background:var(--line); height:10px; border-radius:99px; overflow:hidden; }
+  .bar > span { display:block; height:100%; background:var(--primary); }
+  .breakdown { flex:1; min-width:260px; }
+  .breakdown div.row { margin-bottom:10px; font-size:14px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px; }
+  figure { margin:0; border:1px solid var(--line); border-radius:10px; padding:8px; text-align:center; }
+  figure img { max-width:100%; height:auto; }
+  figcaption { color:var(--muted); font-size:12px; }
+  .banner { background:#FEF3C7; border:1px solid #FCD34D; padding:10px 14px; border-radius:8px; margin-bottom:14px; font-size:14px; }
+  .rec { border-left:4px solid var(--info); background:#F9FAFB; padding:10px 14px; margin-bottom:10px; border-radius:0 8px 8px 0; }
+  .rec.warning { border-color:var(--warn); } .rec.critical { border-color:var(--crit); }
+  .rec .t { font-weight:600; } .rec .why { color:var(--muted); font-size:13px; }
+  .muted { color:var(--muted); }
+  footer { text-align:center; color:var(--muted); font-size:13px; padding:20px 0 40px; }
+  @media print { nav { display:none; } section { box-shadow:none; break-inside:avoid-page; } }
+</style>
+</head>
+<body>
+
+<header class="hero"><div class="wrap">
+  <p class="eyebrow">AI Dataset Intelligence Platform</p>
+  <h1>{{ r.dataset.name }}</h1>
+  <p class="sub">Generated {{ r.generated_at.strftime('%Y-%m-%d %H:%M UTC') }} &middot; ADIP v{{ r.adip_version }}</p>
+</div></header>
+
+<nav><div class="wrap">
+  <a href="#overview">Overview</a><a href="#profiling">Profiling</a><a href="#quality">Data quality</a>
+  <a href="#eda">Exploratory analysis</a><a href="#features">Feature recommendations</a>
+</div></nav>
+
+<main class="wrap">
+
+<section id="overview">
+  <h2>1. Dataset overview</h2>
+  {% if r.dataset.truncated %}<div class="banner">Only the first {{ r.dataset.rows_loaded|num }} rows were analysed (row limit reached).</div>{% endif %}
+  <div class="kpis">
+    <div class="kpi"><div class="v">{{ r.profile.n_rows|num }}</div><div class="l">Rows</div></div>
+    <div class="kpi"><div class="v">{{ r.profile.n_cols|num }}</div><div class="l">Columns</div></div>
+    <div class="kpi"><div class="v">{{ r.profile.memory_bytes|size }}</div><div class="l">Memory</div></div>
+    <div class="kpi"><div class="v">{{ r.profile.missing_pct }}%</div><div class="l">Missing cells</div></div>
+    <div class="kpi"><div class="v">{{ r.profile.duplicate_rows|num }}</div><div class="l">Duplicate rows</div></div>
+    <div class="kpi"><div class="v grade-{{ r.quality.grade }}">{{ r.quality.grade }} &middot; {{ r.quality.score }}</div><div class="l">Quality score</div></div>
+  </div>
+  <p class="muted">Format: {{ r.dataset.file_format|upper }} &middot; File size: {{ r.dataset.file_size_bytes|size }}
+    {% if r.dataset.sheet_name %}&middot; Sheet: {{ r.dataset.sheet_name }}{% endif %}
+    {% if r.target %}&middot; Target column: <b>{{ r.target }}</b>{% endif %}</p>
+</section>
+
+<section id="profiling">
+  <h2>2. Profiling summary</h2>
+  <div class="scroll"><table>
+    <tr><th>Column</th><th>Type</th><th>Kind</th><th>Missing</th><th>Unique</th><th>Sample values</th></tr>
+    {% for c in r.profile.columns %}
+    <tr><td><b>{{ c.name }}</b></td><td>{{ c.dtype }}</td><td>{{ c.kind }}</td>
+        <td>{{ c.missing|num }} ({{ c.missing_pct }}%)</td><td>{{ c.unique|num }}</td>
+        <td class="muted">{{ c.sample_values|join(', ') }}</td></tr>
+    {% endfor %}
+  </table></div>
+</section>
+
+<section id="quality">
+  <h2>3. Data quality findings</h2>
+  <div class="score-row">
+    <div><div class="grade grade-{{ r.quality.grade }}">{{ r.quality.grade }}</div>
+         <div class="muted">Overall score {{ r.quality.score }} / 100</div></div>
+    <div class="breakdown">
+      {% for name, value in r.quality.score_breakdown.items() %}
+      <div class="row"><div style="display:flex;justify-content:space-between"><span>{{ name|capitalize }}</span><span>{{ value }}</span></div>
+      <div class="bar"><span style="width:{{ value }}%"></span></div></div>
+      {% endfor %}
+    </div>
+  </div>
+  <p>{{ severity_counts.get('critical', 0) }} critical &middot; {{ severity_counts.get('warning', 0) }} warnings &middot; {{ severity_counts.get('info', 0) }} informational</p>
+
+  {% if r.quality.issues %}
+  <div class="scroll"><table>
+    <tr><th>Severity</th><th>Issue</th><th>Column</th><th>Details</th></tr>
+    {% for i in r.quality.issues %}
+    <tr><td><span class="badge {{ i.severity }}">{{ i.severity }}</span></td><td>{{ i.code.value }}</td>
+        <td>{{ i.column or '-' }}</td><td>{{ i.message }}</td></tr>
+    {% endfor %}
+  </table></div>
+  {% else %}<p>No data quality issues were detected.</p>{% endif %}
+
+  {% if r.quality.outliers %}
+  <h3>Outliers ({{ r.quality.outliers[0].method|upper }})</h3>
+  <div class="scroll"><table>
+    <tr><th>Column</th><th>Outliers</th><th>%</th><th>Lower bound</th><th>Upper bound</th></tr>
+    {% for o in r.quality.outliers %}
+    <tr><td>{{ o.column }}</td><td>{{ o.count|num }}</td><td>{{ o.pct }}%</td>
+        <td>{{ o.lower_bound|num }}</td><td>{{ o.upper_bound|num }}</td></tr>
+    {% endfor %}
+  </table></div>
+  {% endif %}
+
+  {% if plots.get('missing') %}<h3>Missing values</h3>
+  <div class="grid">{% for p in plots['missing'] %}<figure><img alt="{{ p.title }}" src="data:image/png;base64,{{ p.b64 }}"></figure>{% endfor %}</div>{% endif %}
+</section>
+
+<section id="eda">
+  <h2>4. Exploratory analysis</h2>
+
+  {% if r.eda.numeric %}
+  <h3>Descriptive statistics (numeric)</h3>
+  <div class="scroll"><table>
+    <tr><th>Column</th><th>Mean</th><th>Std</th><th>Min</th><th>Median</th><th>Max</th><th>Skewness</th><th>Shape</th></tr>
+    {% for s in r.eda.numeric %}
+    <tr><td><b>{{ s.column }}</b></td><td>{{ s.mean|num }}</td><td>{{ s.std|num }}</td><td>{{ s.min|num }}</td>
+        <td>{{ s.median|num }}</td><td>{{ s.max|num }}</td><td>{{ s.skewness|num }}</td><td>{{ s.shape }}</td></tr>
+    {% endfor %}
+  </table></div>
+  {% endif %}
+
+  {% if plots.get('histogram') %}<h3>Distributions</h3>
+  <div class="grid">{% for p in plots['histogram'] %}<figure><img alt="{{ p.title }}" src="data:image/png;base64,{{ p.b64 }}"></figure>{% endfor %}</div>{% endif %}
+
+  {% if plots.get('boxplot') %}<h3>Box plots</h3>
+  <div class="grid">{% for p in plots['boxplot'] %}<figure><img alt="{{ p.title }}" src="data:image/png;base64,{{ p.b64 }}"></figure>{% endfor %}</div>{% endif %}
+
+  {% if r.eda.categorical %}
+  <h3>Categorical columns</h3>
+  <div class="scroll"><table>
+    <tr><th>Column</th><th>Unique</th><th>Most frequent</th><th>Share</th></tr>
+    {% for c in r.eda.categorical %}
+    <tr><td><b>{{ c.column }}</b></td><td>{{ c.unique|num }}</td><td>{{ c.mode }}</td><td>{{ c.mode_pct }}%</td></tr>
+    {% endfor %}
+  </table></div>
+  {% endif %}
+  {% if plots.get('category') %}
+  <div class="grid" style="margin-top:14px">{% for p in plots['category'] %}<figure><img alt="{{ p.title }}" src="data:image/png;base64,{{ p.b64 }}"></figure>{% endfor %}</div>{% endif %}
+
+  {% if r.eda.correlation %}
+  <h3>Correlation analysis</h3>
+  {% if r.eda.correlation.sampled %}<p class="muted">Computed on a random sample of {{ r.eda.correlation.n_rows_used|num }} rows.</p>{% endif %}
+  {% if r.eda.correlation.columns_truncated %}<p class="muted">Only the first 40 numeric columns are shown.</p>{% endif %}
+  {% if r.eda.correlation.high_pairs %}
+  <div class="scroll"><table>
+    <tr><th>Column A</th><th>Column B</th><th>Pearson r</th></tr>
+    {% for p in r.eda.correlation.high_pairs %}
+    <tr><td>{{ p.column_a }}</td><td>{{ p.column_b }}</td><td>{{ p.coefficient }}</td></tr>
+    {% endfor %}
+  </table></div>
+  {% else %}<p>No pairs exceed the threshold of {{ r.eda.correlation.threshold }}.</p>{% endif %}
+  {% for p in plots.get('correlation', []) %}<figure style="margin-top:14px"><img alt="{{ p.title }}" src="data:image/png;base64,{{ p.b64 }}"></figure>{% endfor %}
+  {% endif %}
+</section>
+
+<section id="features">
+  <h2>5. Feature recommendations</h2>
+  <p class="muted">Guidance only. ADIP never modifies your data.</p>
+
+  {% if r.features.target %}{% set t = r.features.target %}
+  <h3>Target: {{ t.column }} ({{ t.task }})</h3>
+  {% for n in t.notes %}<div class="banner">{{ n }}</div>{% endfor %}
+  {% if t.class_balance %}
+  <div class="scroll"><table><tr><th>Class</th><th>Count</th><th>Share</th></tr>
+    {% for c in t.class_balance %}<tr><td>{{ c.value }}</td><td>{{ c.count|num }}</td><td>{{ c.pct }}%</td></tr>{% endfor %}
+  </table></div>
+  {% if t.imbalance_ratio %}<p class="muted">Imbalance ratio (largest / smallest): {{ t.imbalance_ratio }}</p>{% endif %}
+  {% endif %}
+  {% if t.signals %}
+  <p><b>Strongest numeric relationships with the target</b> ({{ t.signal_metric }}):</p>
+  <div class="scroll"><table><tr><th>Feature</th><th>Score</th></tr>
+    {% for s in t.signals %}<tr><td>{{ s.column }}</td><td>{{ s.score }}</td></tr>{% endfor %}
+  </table></div>
+  {% endif %}
+  {% endif %}
+
+  {% for label, items in recs.items() %}
+  <h3>{{ label }}</h3>
+  {% for x in items %}
+  <div class="rec {{ x.severity }}">
+    <div class="t"><span class="badge {{ x.severity }}">{{ x.severity }}</span> {{ x.title }}
+      {% if x.columns|length > 1 %}<span class="muted">({{ x.columns|join(', ') }})</span>{% endif %}</div>
+    <div>{{ x.recommendation }}</div>
+    <div class="why">{{ x.rationale }}</div>
+  </div>
+  {% endfor %}
+  {% endfor %}
+  {% if not recs %}<p>No recommendations. The dataset looks ready for modelling.</p>{% endif %}
+</section>
+
+</main>
+<footer>Generated by ADIP v{{ r.adip_version }}</footer>
+</body>
+</html>
