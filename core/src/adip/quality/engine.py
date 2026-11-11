@@ -3,7 +3,7 @@ import logging
 import numpy as np
 import pandas as pd
 
-from adip.config import QualityConfig
+from adip.config import QualityConfig, ScoringConfig
 from adip.models.profile import DatasetProfile
 from adip.models.quality import (
     IssueCode,
@@ -14,6 +14,7 @@ from adip.models.quality import (
 )
 from adip.quality.outliers import detect_outliers
 from adip.quality.scoring import compute_score
+from adip.quality.status import assess_dataset_status
 from adip.utils.validation import has_mixed_types, numeric_text_ratio, pct
 
 logger = logging.getLogger(__name__)
@@ -44,8 +45,22 @@ def _issue(
 class QualityEngine:
     """Detects data quality problems and produces an overall quality assessment."""
 
-    def __init__(self, config: QualityConfig | None = None) -> None:
+    def __init__(
+        self,
+        config: QualityConfig | None = None,
+        scoring_config: ScoringConfig | None = None,
+    ) -> None:
+        """Initialize quality checks and scoring policy.
+
+        Args:
+            config: Detection thresholds and outlier settings.
+            scoring_config: Dimension weights and grade thresholds.
+
+        Raises:
+            No exceptions are raised for validated configuration models.
+        """
         self.config = config or QualityConfig()
+        self.scoring_config = scoring_config or ScoringConfig()
 
     def run(self, df: pd.DataFrame, profile: DatasetProfile) -> QualityReport:
         issues: list[QualityIssue] = []
@@ -57,12 +72,26 @@ class QualityEngine:
         issues += outlier_issues
 
         issues.sort(key=lambda i: (_SEVERITY_ORDER[i.severity], i.code, i.column or ""))
-        score, grade, breakdown = compute_score(profile, issues, outliers)
-        logger.info("Quality score %.1f (%s), %d issues", score, grade, len(issues))
+        scoring = compute_score(profile, issues, outliers, self.scoring_config)
+        status, status_summary, status_rules = assess_dataset_status(issues)
+        logger.info(
+            "Quality score %.1f (%s), status %s, %d issues",
+            scoring.score,
+            scoring.grade,
+            status,
+            len(issues),
+        )
         return QualityReport(
-            score=score,
-            grade=grade,
-            score_breakdown=breakdown,
+            score=scoring.score,
+            grade=scoring.grade,
+            status=status,
+            status_summary=status_summary,
+            status_rules=status_rules,
+            score_breakdown=scoring.breakdown,
+            dimension_scores=scoring.dimensions,
+            score_explanation=scoring.score_explanation,
+            grade_explanation=scoring.grade_explanation,
+            grading_thresholds=scoring.thresholds,
             issues=issues,
             outliers=outliers,
         )
@@ -206,7 +235,57 @@ class QualityEngine:
                         100.0,
                     )
                 )
+
+            inconsistent = self._inconsistent_text_format(series, col.name, col.non_null)
+            if inconsistent is not None:
+                found.append(inconsistent)
         return found
+
+    @staticmethod
+    def _inconsistent_text_format(
+        series: pd.Series, column: str, non_null_count: int
+    ) -> QualityIssue | None:
+        """Detect whitespace and letter-case variants in textual values.
+
+        Args:
+            series: Source column values.
+            column: User-facing column name.
+            non_null_count: Number of non-null values used as the percentage denominator.
+
+        Returns:
+            A quality issue when inconsistent formatting is found; otherwise ``None``.
+
+        Raises:
+            No exceptions are raised for supported pandas series.
+        """
+        if not (series.dtype == object or pd.api.types.is_string_dtype(series.dtype)):
+            return None
+
+        values = series.dropna().astype(str)
+        if values.empty:
+            return None
+
+        spacing_normalized = values.str.strip().str.replace(r"\s+", " ", regex=True)
+        canonical = spacing_normalized.str.casefold()
+        spacing_problem = values.ne(spacing_normalized)
+        variant_counts = values.groupby(canonical).nunique()
+        variant_keys = set(variant_counts[variant_counts > 1].index)
+        variant_problem = canonical.isin(variant_keys)
+        affected = int((spacing_problem | variant_problem).sum())
+        if affected == 0:
+            return None
+
+        examples = list(dict.fromkeys(values[spacing_problem | variant_problem].head(10)))
+        return _issue(
+            IssueCode.INCONSISTENT_FORMAT,
+            "warning",
+            f"'{column}' contains {affected} values with inconsistent spacing or letter case.",
+            column,
+            affected,
+            pct(affected, non_null_count),
+            examples=examples,
+            normalization="trim, collapse whitespace, and compare case-insensitively",
+        )
 
     def _outliers(
         self, df: pd.DataFrame, profile: DatasetProfile

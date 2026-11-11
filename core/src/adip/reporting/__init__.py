@@ -3,11 +3,13 @@ from adip.reporting.base import BaseExporter
 from adip.reporting.excel_exporter import ExcelExporter
 from adip.reporting.html_exporter import HtmlExporter
 from adip.reporting.json_exporter import JsonExporter
+from adip.reporting.pdf_exporter import PdfExporter
 
 _EXPORTERS: dict[str, type[BaseExporter]] = {
     "html": HtmlExporter,
     "json": JsonExporter,
     "excel": ExcelExporter,
+    "pdf": PdfExporter,
 }
 _ALIASES = {"xlsx": "excel"}
 

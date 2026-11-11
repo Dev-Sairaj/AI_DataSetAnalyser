@@ -24,6 +24,7 @@ REPORT_FILES: dict[str, tuple[str, str]] = {
         "report.xlsx",
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ),
+    "pdf": ("report.pdf", "application/pdf"),
 }
 
 
@@ -63,6 +64,41 @@ class JobStorage:
 
     def report_path(self, job_id: str, fmt: str) -> Path:
         return self.reports_dir(job_id) / REPORT_FILES[fmt][0]
+
+    def standardization_dir(self, job_id: str) -> Path:
+        """Return the directory holding derived standardized artifacts."""
+        return self.job_dir(job_id) / "standardized"
+
+    def standardization_report_path(self, job_id: str) -> Path:
+        """Return the audit-report path for the latest standardization run."""
+        return self.standardization_dir(job_id) / "standardization_report.json"
+
+    def standardized_data_path(self, job_id: str) -> Path:
+        """Return the existing standardized dataset path.
+
+        Raises:
+            JobNotFoundError: If no standardized CSV or XLSX artifact exists.
+        """
+        matches = sorted(self.standardization_dir(job_id).glob("standardized.*"))
+        if not matches:
+            raise JobNotFoundError(job_id)
+        return matches[0]
+
+    def new_standardized_data_path(self, job_id: str, extension: str) -> Path:
+        """Return a safe output path for a new standardized dataset artifact."""
+        if extension not in {".csv", ".xlsx"}:
+            raise ValueError(f"Unsupported standardized output extension: {extension}")
+        directory = self.standardization_dir(job_id)
+        directory.mkdir(parents=True, exist_ok=True)
+        return directory / f"standardized{extension}"
+
+    def delete_reports(self, job_id: str) -> None:
+        """Remove generated analysis reports while preserving the original upload."""
+        shutil.rmtree(self.reports_dir(job_id), ignore_errors=True)
+
+    def delete_standardization(self, job_id: str) -> None:
+        """Remove derived standardized artifacts while preserving the original upload."""
+        shutil.rmtree(self.standardization_dir(job_id), ignore_errors=True)
 
     def list_ids(self) -> list[str]:
         return [p.name for p in self.root.iterdir() if p.is_dir() and _JOB_ID_RE.match(p.name)]

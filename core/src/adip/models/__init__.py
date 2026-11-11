@@ -12,23 +12,35 @@ from adip.models.eda import (
 from adip.models.features import (
     FeatureReport,
     FeatureSignal,
-    Recommendation,
     RecCategory,
+    Recommendation,
     TargetAnalysis,
+)
+from adip.models.governance import (
+    CoverageStatus,
+    GovernmentFrameworkMapping,
+    GovernmentFrameworkReference,
+    GovernmentQualityDimension,
+    QualityDimensionName,
 )
 from adip.models.profile import ColumnKind, ColumnProfile, DatasetProfile
 from adip.models.quality import (
+    DatasetStatus,
     IssueCode,
     OutlierSummary,
     QualityIssue,
     QualityReport,
     Severity,
+    StatusRuleResult,
 )
 from adip.models.report import AnalysisReport, ChartData, MissingBar
+from adip.models.sop import AssessmentSOP, AutomationMode, SOPStage
 
 __all__ = [
     "AnalysisReport",
+    "AssessmentSOP",
     "BoxPlotData",
+    "AutomationMode",
     "CategoricalStats",
     "CategoryCount",
     "ChartData",
@@ -37,10 +49,15 @@ __all__ = [
     "CorrelationPair",
     "CorrelationResult",
     "DatasetInfo",
+    "DatasetStatus",
     "DatasetProfile",
     "EdaReport",
     "FeatureReport",
     "FeatureSignal",
+    "CoverageStatus",
+    "GovernmentFrameworkMapping",
+    "GovernmentFrameworkReference",
+    "GovernmentQualityDimension",
     "HistogramData",
     "IssueCode",
     "MissingBar",
@@ -48,8 +65,11 @@ __all__ = [
     "OutlierSummary",
     "QualityIssue",
     "QualityReport",
+    "QualityDimensionName",
     "RecCategory",
     "Recommendation",
     "Severity",
+    "StatusRuleResult",
+    "SOPStage",
     "TargetAnalysis",
 ]

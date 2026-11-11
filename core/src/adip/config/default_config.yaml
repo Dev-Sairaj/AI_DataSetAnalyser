@@ -1,30 +1,54 @@
 loader:
   chunk_size: 100000
   max_file_size_mb: 1024
-  max_rows: null        # null = read everything
-  excel_sheet: 0        # sheet index or name
+  max_rows: null # null = read everything
+  excel_sheet: 0 # sheet index or name
 
 quality:
-  outlier_method: iqr   # iqr | zscore | isolation_forest
+  outlier_method: iqr # iqr | zscore | isolation_forest
   iqr_multiplier: 1.5
   zscore_threshold: 3.0
   missing_warn_pct: 5.0
   missing_critical_pct: 40.0
-  high_cardinality_ratio: 0.5     # unique / non-null
+  high_cardinality_ratio: 0.5 # unique / non-null
   high_cardinality_min_unique: 50
 
+scoring:
+  # Defaults balance factual reliability, coverage and structural fitness.
+  # Timeliness is excluded and remaining weights are renormalized when no reporting metadata exists.
+  weights:
+    accuracy: 0.20
+    completeness: 0.20
+    consistency: 0.15
+    timeliness: 0.10
+    validity: 0.20
+    uniqueness: 0.15
+  thresholds:
+    a: 90.0
+    b: 80.0
+    c: 70.0
+    d: 60.0
+  unassessed_dimension_policy: renormalize
+
 eda:
-  sample_size: 50000              # max rows used for plots / correlations
+  sample_size: 50000 # max rows used for plots / correlations
   correlation_threshold: 0.85
   max_categories_shown: 15
   histogram_bins: 30
 
-
 features:
-  id_unique_pct: 99.5             # >= this % unique => likely identifier
-  onehot_max_unique: 10           # up to this many categories => one-hot
+  id_unique_pct: 99.5 # >= this % unique => likely identifier
+  onehot_max_unique: 10 # up to this many categories => one-hot
   skew_threshold: 1.0
   near_constant_pct: 99.0
-  robust_outlier_pct: 5.0         # outlier % above this => RobustScaler
+  robust_outlier_pct: 5.0 # outlier % above this => RobustScaler
   target_regression_min_unique: 10
   max_correlation_recommendations: 20
+
+fixes:
+  max_row_loss_pct: 20.0 # warn when one step removes more than this % of the original rows
+  one_hot_max_categories: 50 # one_hot skips columns with more distinct values
+
+insights:
+  enabled: false # AI advisor is opt-in; rule-based fixes never need it
+  providers: [gemini, groq, openrouter, mistral, ollama] # fallback order

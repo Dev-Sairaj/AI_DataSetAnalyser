@@ -73,7 +73,8 @@ class JobManager:
             record = self.get(job_id)
             if record.status in _ACTIVE:
                 raise JobStateError("This job is already queued or running.")
-            self.storage.delete_reports(job_id) if hasattr(self.storage, "delete_reports") else None
+            self.storage.delete_reports(job_id)
+            self.storage.delete_standardization(job_id)
             return self.update(
                 job_id,
                 status="queued",

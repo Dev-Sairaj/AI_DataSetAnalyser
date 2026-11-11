@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet, useParams } from "react-router-dom";
-import { BarChart3, Download, Lightbulb, LayoutDashboard, ShieldCheck } from "lucide-react";
+import { BarChart3, ClipboardCheck, Download, Lightbulb, LayoutDashboard, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { useJob, useResult, useRunJob } from "../../api/hooks";
 import type { JobContext } from "../../hooks/useReport";
 import { Alert, Badge, Button, Card, ProgressBar, Spinner, gradeTone } from "../ui";
@@ -10,6 +10,8 @@ const TABS = [
   ["quality", "Data quality", ShieldCheck],
   ["eda", "Exploratory analysis", BarChart3],
   ["features", "Feature guidance", Lightbulb],
+  ["standardize", "Standardize", SlidersHorizontal],
+  ["sop", "Assessment SOP", ClipboardCheck],
   ["export", "Export", Download],
 ] as const;
 

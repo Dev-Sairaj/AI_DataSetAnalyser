@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -17,7 +17,12 @@ RecCategory = Literal[
 
 
 class Recommendation(BaseModel):
-    """Guidance only. ADIP never modifies the dataset."""
+    """Advice, optionally with the fix that would carry it out.
+
+    ``fix`` is a name from the fix registry. Without it the recommendation is
+    advice-only and never becomes a plan step. ADIP itself never modifies the
+    dataset: fixes only run after the user approves a plan.
+    """
 
     category: RecCategory
     severity: Severity
@@ -26,6 +31,9 @@ class Recommendation(BaseModel):
     title: str
     recommendation: str
     rationale: str
+    fix: str | None = None
+    fix_columns: list[str] = Field(default_factory=list)
+    fix_params: dict[str, Any] = Field(default_factory=dict)
 
 
 class FeatureSignal(BaseModel):

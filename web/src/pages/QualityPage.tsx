@@ -2,15 +2,28 @@ import { useState } from "react";
 import { useReport } from "../hooks/useReport";
 import BarList from "../components/charts/BarList";
 import ScoreCard from "../components/charts/ScoreCard";
-import { Button, Card, Section, SeverityBadge, Stat, Table, Td, Th } from "../components/ui";
+import { Alert, Badge, Button, Card, Section, SeverityBadge, Stat, Table, Td, Th } from "../components/ui";
 import { fmtInt, fmtNum } from "../lib/format";
-import type { Severity } from "../types/api";
+import type { GovernmentCoverage, Severity } from "../types/api";
+import type { Tone } from "../components/ui";
 
 type Filter = "all" | Severity;
 
+const COVERAGE_TONE: Record<GovernmentCoverage, Tone> = {
+  implemented: "green",
+  partially_implemented: "amber",
+  external_or_manual: "slate",
+};
+
+const COVERAGE_LABEL: Record<GovernmentCoverage, string> = {
+  implemented: "Implemented",
+  partially_implemented: "Partially implemented",
+  external_or_manual: "External/manual",
+};
+
 export default function QualityPage() {
   const { report } = useReport();
-  const { quality, charts } = report;
+  const { quality, charts, government_framework: government } = report;
   const [filter, setFilter] = useState<Filter>("all");
 
   const count = (s: Severity) => quality.issues.filter((i) => i.severity === s).length;
@@ -68,6 +81,96 @@ export default function QualityPage() {
               </tbody>
             </Table>
           )}
+        </Card>
+      </Section>
+
+      <Section
+        title="Government of India data-quality framework mapping"
+        subtitle={`${government.framework_name} — operational alignment for this assessment.`}
+      >
+        <Alert tone="amber">{government.disclaimer}</Alert>
+        <Card className="p-0">
+          <Table>
+            <thead>
+              <tr>
+                <Th>Dimension</Th>
+                <Th>Coverage</Th>
+                <Th>Implemented checks</Th>
+                <Th>External or manual checks</Th>
+                <Th>Detected findings</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {government.dimensions.map((dimension) => (
+                <tr key={dimension.name}>
+                  <Td>
+                    <div className="font-medium">{dimension.name}</div>
+                    <div className="mt-1 max-w-xs text-xs text-slate-500">{dimension.explanation}</div>
+                  </Td>
+                  <Td>
+                    <Badge tone={COVERAGE_TONE[dimension.coverage]}>
+                      {COVERAGE_LABEL[dimension.coverage]}
+                    </Badge>
+                  </Td>
+                  <Td>
+                    <ul className="min-w-64 list-disc space-y-1 pl-4 text-slate-600">
+                      {dimension.implemented_checks.map((check) => <li key={check}>{check}</li>)}
+                      {dimension.implemented_checks.length === 0 && <li>None automated</li>}
+                    </ul>
+                  </Td>
+                  <Td>
+                    <ul className="min-w-64 list-disc space-y-1 pl-4 text-slate-600">
+                      {dimension.external_or_manual_checks.map((check) => <li key={check}>{check}</li>)}
+                    </ul>
+                  </Td>
+                  <Td>
+                    <div>{dimension.detected_issue_count}</div>
+                    <div className="text-xs text-slate-400">
+                      {dimension.detected_issue_codes.join(", ") || "No automated finding"}
+                    </div>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </Card>
+        <div className="space-y-1 text-sm">
+          {government.references.map((reference) => (
+            <p key={reference.url}>
+              <a className="text-indigo-600 hover:underline" href={reference.url} target="_blank" rel="noreferrer">
+                {reference.title}
+              </a>{" "}
+              <span className="text-slate-500">— {reference.publisher}</span>
+            </p>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        title="How the dataset status was determined"
+        subtitle="The status uses all implemented checks, not only missing-value checks."
+      >
+        <Card className="p-0">
+          <Table>
+            <thead>
+              <tr>
+                <Th>Status rule</Th>
+                <Th>Condition</Th>
+                <Th>Result</Th>
+                <Th>Evidence</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {quality.status_rules.map((rule) => (
+                <tr key={rule.name}>
+                  <Td className="font-medium">{rule.name}</Td>
+                  <Td className="text-slate-600">{rule.condition}</Td>
+                  <Td>{rule.triggered ? "Applied" : "Not applied"}</Td>
+                  <Td className="text-slate-600">{rule.evidence}</Td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
         </Card>
       </Section>
 

@@ -3,7 +3,10 @@
 export type JobStatus = "uploaded" | "queued" | "running" | "completed" | "failed";
 export type ColumnKind = "numeric" | "categorical" | "boolean" | "datetime" | "text" | "empty";
 export type Severity = "info" | "warning" | "critical";
-export type ExportFormat = "html" | "json" | "excel";
+export type DatasetStatus = "Clean" | "Needs Cleaning" | "Critical Issues";
+export type ExportFormat = "html" | "json" | "excel" | "pdf";
+export type TextCase = "preserve" | "lower" | "upper" | "title";
+export type ScalingMethod = "none" | "minmax" | "zscore";
 
 export interface JobRecord {
   job_id: string;
@@ -97,10 +100,45 @@ export interface OutlierSummary {
   upper_bound: number | null;
 }
 
+export interface StatusRuleResult {
+  name: DatasetStatus;
+  condition: string;
+  triggered: boolean;
+  evidence: string;
+}
+
+export type QualityDimensionName =
+  | "Accuracy"
+  | "Completeness"
+  | "Consistency"
+  | "Timeliness"
+  | "Validity"
+  | "Uniqueness";
+
+export type DimensionAssessment = "automated" | "proxy" | "not_assessed";
+
+export interface DimensionScore {
+  name: QualityDimensionName;
+  score: number | null;
+  assessment: DimensionAssessment;
+  configured_weight: number;
+  effective_weight: number;
+  formula: string;
+  evidence: string;
+  limitation: string | null;
+}
+
 export interface QualityReport {
   score: number;
   grade: string;
+  status: DatasetStatus;
+  status_summary: string;
+  status_rules: StatusRuleResult[];
   score_breakdown: Record<string, number>;
+  dimension_scores: DimensionScore[];
+  score_explanation: string;
+  grade_explanation: string;
+  grading_thresholds: Record<string, number>;
   issues: QualityIssue[];
   outliers: OutlierSummary[];
 }
@@ -222,6 +260,56 @@ export interface FeatureReport {
   target: TargetAnalysis | null;
 }
 
+export type GovernmentCoverage =
+  | "implemented"
+  | "partially_implemented"
+  | "external_or_manual";
+
+export interface GovernmentFrameworkReference {
+  title: string;
+  publisher: string;
+  url: string;
+  relevance: string;
+}
+
+export interface GovernmentQualityDimension {
+  name: "Accuracy" | "Completeness" | "Consistency" | "Timeliness" | "Validity" | "Uniqueness";
+  coverage: GovernmentCoverage;
+  explanation: string;
+  implemented_checks: string[];
+  external_or_manual_checks: string[];
+  detected_issue_count: number;
+  detected_issue_codes: string[];
+}
+
+export interface GovernmentFrameworkMapping {
+  framework_name: string;
+  mapping_name: string;
+  disclaimer: string;
+  references: GovernmentFrameworkReference[];
+  dimensions: GovernmentQualityDimension[];
+}
+
+export type SOPAutomation = "automatic" | "user_triggered" | "automatic_and_user_triggered";
+
+export interface SOPStage {
+  step: number;
+  name: string;
+  purpose: string;
+  input: string;
+  method: string;
+  output: string;
+  automation: SOPAutomation;
+  testing_criteria: string[];
+}
+
+export interface AssessmentSOP {
+  title: string;
+  version: string;
+  scope: string;
+  stages: SOPStage[];
+}
+
 export interface MissingBar {
   column: string;
   missing: number;
@@ -245,6 +333,77 @@ export interface AnalysisReport {
   quality: QualityReport;
   eda: EdaReport;
   features: FeatureReport;
+  government_framework: GovernmentFrameworkMapping;
+  sop: AssessmentSOP;
   charts: ChartData;
   config: Record<string, unknown>;
+}
+
+export interface StandardizeRequest {
+  text_columns: string[];
+  text_case: TextCase;
+  date_columns: string[];
+  date_format: string;
+  dayfirst: boolean;
+  phone_columns: string[];
+  phone_country_code: string;
+  numeric_columns: string[];
+  scaling_method: ScalingMethod;
+}
+
+export interface FixStepResult {
+  step_id: string;
+  fix: string;
+  label: string;
+  status: "applied" | "skipped" | "failed";
+  message: string;
+  columns: string[];
+  ignored_columns: string[];
+  params: Record<string, unknown>;
+  rows_before: number;
+  rows_after: number;
+  cols_before: number;
+  cols_after: number;
+  warning: string | null;
+}
+
+export interface StandardizationQualityScore {
+  score: number;
+  grade: string;
+  status: DatasetStatus | null;
+  issues: number;
+  issue_details: QualityIssue[];
+  breakdown: Record<string, number>;
+  dimensions: DimensionScore[];
+  score_explanation: string;
+  grade_explanation: string;
+  missing_values: number;
+  duplicate_records: number;
+  invalid_values: number;
+}
+
+export interface FixReport {
+  generated_at: string;
+  target: string | null;
+  steps: FixStepResult[];
+  rows_before: number;
+  rows_after: number;
+  cols_before: number;
+  cols_after: number;
+  before: StandardizationQualityScore;
+  after: StandardizationQualityScore;
+  records_modified: number;
+  records_removed: number;
+  comparison_notes: string[];
+  warnings: string[];
+  score_delta: number;
+  missing_values_delta: number;
+  duplicate_records_delta: number;
+  invalid_values_delta: number;
+}
+
+export interface StandardizationResponse {
+  file_format: "csv" | "xlsx";
+  download_name: string;
+  report: FixReport;
 }

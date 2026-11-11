@@ -13,13 +13,15 @@ from adip.loaders import load_dataset
 from adip.models.report import AnalysisReport
 from adip.profiling import ProfilingEngine
 from adip.quality import QualityEngine
+from adip.quality.government_mapping import build_government_framework_mapping
 from adip.reporting import get_exporter
+from adip.sop import build_assessment_sop
 from adip.visualization import build_chart_data, render_plots
 
 logger = logging.getLogger(__name__)
 
 ProgressCallback = Callable[[str, float], None]
-DEFAULT_FORMATS = ("html", "json", "excel")
+DEFAULT_FORMATS = ("html", "json", "excel", "pdf")
 
 
 class ADIP:
@@ -58,7 +60,7 @@ class ADIP:
         profile = ProfilingEngine().run(df)
 
         step("Assessing data quality", 0.40)
-        quality = QualityEngine(cfg.quality).run(df, profile)
+        quality = QualityEngine(cfg.quality, cfg.scoring).run(df, profile)
 
         step("Running exploratory analysis", 0.60)
         eda = EdaEngine(cfg.eda).run(df, profile)
@@ -67,6 +69,8 @@ class ADIP:
         features = FeatureEngine(cfg.features, cfg.quality, cfg.eda).run(
             df, profile, quality, eda, self.target
         )
+
+        government_framework = build_government_framework_mapping(quality)
 
         step("Preparing chart data", 0.95)
         charts = build_chart_data(profile, eda)
@@ -79,6 +83,8 @@ class ADIP:
             quality=quality,
             eda=eda,
             features=features,
+            government_framework=government_framework,
+            sop=build_assessment_sop(),
             charts=charts,
             config=cfg.model_dump(),
         )

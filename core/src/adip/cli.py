@@ -8,10 +8,12 @@ from rich.table import Table
 from adip import __version__
 from adip.exceptions import ADIPError
 from adip.logging_config import setup_logging
-from adip.pipeline import DEFAULT_FORMATS, ADIP
+from adip.pipeline import ADIP, DEFAULT_FORMATS
 from adip.reporting import available_formats, get_exporter
 
-app = typer.Typer(help="AI Dataset Intelligence Platform: automated dataset analysis.", no_args_is_help=True)
+app = typer.Typer(
+    help="AI Dataset Intelligence Platform: automated dataset analysis.", no_args_is_help=True
+)
 console = Console()
 err_console = Console(stderr=True)
 
@@ -19,17 +21,29 @@ err_console = Console(stderr=True)
 @app.command()
 def analyze(
     file: Annotated[Path, typer.Argument(exists=True, dir_okay=False, help="CSV or XLSX file.")],
-    output: Annotated[Path, typer.Option("--output", "-o", help="Output folder.")] = Path("adip_output"),
+    output: Annotated[Path, typer.Option("--output", "-o", help="Output folder.")] = Path(
+        "adip_output"
+    ),
     formats: Annotated[
         list[str] | None,
-        typer.Option("--format", "-f", help=f"html, json, excel. Repeatable. Default: all. ({', '.join(available_formats())})"),
+        typer.Option(
+            "--format",
+            "-f",
+            help=f"html, json, excel, pdf. Repeatable. Default: all. "
+            f"({', '.join(available_formats())})",
+        ),
     ] = None,
-    target: Annotated[str | None, typer.Option("--target", "-t", help="Optional target column.")] = None,
+    target: Annotated[
+        str | None, typer.Option("--target", "-t", help="Optional target column.")
+    ] = None,
     sheet: Annotated[str | None, typer.Option("--sheet", help="Excel sheet name or index.")] = None,
-    config: Annotated[Path | None, typer.Option("--config", "-c", exists=True, dir_okay=False, help="YAML config overrides.")] = None,
+    config: Annotated[
+        Path | None,
+        typer.Option("--config", "-c", exists=True, dir_okay=False, help="YAML config overrides."),
+    ] = None,
     verbose: Annotated[bool, typer.Option("--verbose", "-v")] = False,
 ) -> None:
-    """Analyze a dataset and write HTML / JSON / Excel reports."""
+    """Analyze a dataset and write HTML, JSON, Excel, and PDF reports."""
     setup_logging("DEBUG" if verbose else "WARNING")
     chosen = formats or list(DEFAULT_FORMATS)
     try:

@@ -64,7 +64,7 @@
 
 <nav><div class="wrap">
   <a href="#overview">Overview</a><a href="#profiling">Profiling</a><a href="#quality">Data quality</a>
-  <a href="#eda">Exploratory analysis</a><a href="#features">Feature recommendations</a>
+  <a href="#eda">Exploratory analysis</a><a href="#features">Feature recommendations</a><a href="#sop">SOP</a>
 </div></nav>
 
 <main class="wrap">
@@ -78,6 +78,7 @@
     <div class="kpi"><div class="v">{{ r.profile.memory_bytes|size }}</div><div class="l">Memory</div></div>
     <div class="kpi"><div class="v">{{ r.profile.missing_pct }}%</div><div class="l">Missing cells</div></div>
     <div class="kpi"><div class="v">{{ r.profile.duplicate_rows|num }}</div><div class="l">Duplicate rows</div></div>
+    <div class="kpi"><div class="v">{{ r.quality.status }}</div><div class="l">Dataset status</div></div>
     <div class="kpi"><div class="v grade-{{ r.quality.grade }}">{{ r.quality.grade }} &middot; {{ r.quality.score }}</div><div class="l">Quality score</div></div>
   </div>
   <p class="muted">Format: {{ r.dataset.file_format|upper }} &middot; File size: {{ r.dataset.file_size_bytes|size }}
@@ -99,17 +100,39 @@
 
 <section id="quality">
   <h2>3. Data quality findings</h2>
+  <div class="banner"><b>{{ r.quality.status }}</b>: {{ r.quality.status_summary }}</div>
   <div class="score-row">
     <div><div class="grade grade-{{ r.quality.grade }}">{{ r.quality.grade }}</div>
          <div class="muted">Overall score {{ r.quality.score }} / 100</div></div>
     <div class="breakdown">
-      {% for name, value in r.quality.score_breakdown.items() %}
-      <div class="row"><div style="display:flex;justify-content:space-between"><span>{{ name|capitalize }}</span><span>{{ value }}</span></div>
-      <div class="bar"><span style="width:{{ value }}%"></span></div></div>
+      {% for dimension in r.quality.dimension_scores %}
+      <div class="row"><div style="display:flex;justify-content:space-between"><span>{{ dimension.name }}</span><span>{{ dimension.score if dimension.score is not none else 'Not assessed' }}</span></div>
+      {% if dimension.score is not none %}<div class="bar"><span style="width:{{ dimension.score }}%"></span></div>{% endif %}
+      <div class="muted">{{ dimension.assessment|replace('_', ' ') }} &middot; configured {{ (dimension.configured_weight * 100)|round(1) }}% &middot; effective {{ (dimension.effective_weight * 100)|round(1) }}%</div></div>
       {% endfor %}
     </div>
   </div>
+  <p>{{ r.quality.score_explanation }}</p>
+  <p class="muted">{{ r.quality.grade_explanation }}</p>
+
+  <h3>Six quality dimensions</h3>
+  <div class="scroll"><table>
+    <tr><th>Dimension</th><th>Score</th><th>Formula</th><th>Evidence and limitation</th></tr>
+    {% for dimension in r.quality.dimension_scores %}
+    <tr><td><b>{{ dimension.name }}</b></td><td>{{ dimension.score if dimension.score is not none else 'Not assessed' }}</td>
+        <td>{{ dimension.formula }}</td><td>{{ dimension.evidence }}{% if dimension.limitation %}<br><span class="muted">Limitation: {{ dimension.limitation }}</span>{% endif %}</td></tr>
+    {% endfor %}
+  </table></div>
   <p>{{ severity_counts.get('critical', 0) }} critical &middot; {{ severity_counts.get('warning', 0) }} warnings &middot; {{ severity_counts.get('info', 0) }} informational</p>
+
+  <h3>Status rules</h3>
+  <div class="scroll"><table>
+    <tr><th>Rule</th><th>Condition</th><th>Result</th><th>Evidence</th></tr>
+    {% for rule in r.quality.status_rules %}
+    <tr><td>{{ rule.name }}</td><td>{{ rule.condition }}</td>
+        <td>{{ 'Applied' if rule.triggered else 'Not applied' }}</td><td>{{ rule.evidence }}</td></tr>
+    {% endfor %}
+  </table></div>
 
   {% if r.quality.issues %}
   <div class="scroll"><table>
@@ -131,6 +154,24 @@
     {% endfor %}
   </table></div>
   {% endif %}
+
+  <h3>Government of India data-quality framework mapping</h3>
+  <div class="banner"><b>Important:</b> {{ r.government_framework.disclaimer }}</div>
+  <div class="scroll"><table>
+    <tr><th>Dimension</th><th>Coverage</th><th>Implemented checks</th><th>External/manual checks</th><th>Findings</th></tr>
+    {% for d in r.government_framework.dimensions %}
+    <tr><td><b>{{ d.name }}</b><br><span class="muted">{{ d.explanation }}</span></td>
+        <td>{{ d.coverage|replace('_', ' ') }}</td>
+        <td>{{ d.implemented_checks|join('; ') or 'None automated' }}</td>
+        <td>{{ d.external_or_manual_checks|join('; ') }}</td>
+        <td>{{ d.detected_issue_count }}{% if d.detected_issue_codes %}: {{ d.detected_issue_codes|join(', ') }}{% endif %}</td></tr>
+    {% endfor %}
+  </table></div>
+  <p class="muted">
+    {% for ref in r.government_framework.references %}
+      <a href="{{ ref.url }}">{{ ref.title }}</a>{% if not loop.last %} &middot; {% endif %}
+    {% endfor %}
+  </p>
 
   {% if plots.get('missing') %}<h3>Missing values</h3>
   <div class="grid">{% for p in plots['missing'] %}<figure><img alt="{{ p.title }}" src="data:image/png;base64,{{ p.b64 }}"></figure>{% endfor %}</div>{% endif %}
@@ -217,6 +258,23 @@
   {% endfor %}
   {% endfor %}
   {% if not recs %}<p>No recommendations. The dataset looks ready for modelling.</p>{% endif %}
+</section>
+
+<section id="sop">
+  <h2>6. Assessment SOP</h2>
+  <p><b>{{ r.sop.title }}</b> &middot; Version {{ r.sop.version }}</p>
+  <p class="muted">{{ r.sop.scope }}</p>
+  {% for stage in r.sop.stages %}
+  <h3>{{ stage.step }}. {{ stage.name }}</h3>
+  <div class="scroll"><table>
+    <tr><th>Purpose</th><td>{{ stage.purpose }}</td></tr>
+    <tr><th>Input</th><td>{{ stage.input }}</td></tr>
+    <tr><th>Method</th><td>{{ stage.method }}</td></tr>
+    <tr><th>Output</th><td>{{ stage.output }}</td></tr>
+    <tr><th>Automation</th><td>{{ stage.automation|replace('_', ' ') }}</td></tr>
+    <tr><th>Testing criteria</th><td><ul>{% for criterion in stage.testing_criteria %}<li>{{ criterion }}</li>{% endfor %}</ul></td></tr>
+  </table></div>
+  {% endfor %}
 </section>
 
 </main>

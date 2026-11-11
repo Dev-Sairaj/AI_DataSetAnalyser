@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "./client";
-import type { RunRequest } from "../types/api";
+import type { RunRequest, StandardizeRequest } from "../types/api";
 
 export function useJob(jobId: string) {
   return useQuery({
@@ -52,5 +52,27 @@ export function useDeleteJob() {
   return useMutation({
     mutationFn: (jobId: string) => api.remove(jobId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }),
+  });
+}
+
+/** Loads the latest saved standardization result when one exists. */
+export function useStandardization(jobId: string) {
+  return useQuery({
+    queryKey: ["standardization", jobId],
+    queryFn: () => api.standardization(jobId),
+    retry: false,
+    staleTime: Infinity,
+  });
+}
+
+/** Creates a standardized copy and caches its audit result. */
+export function useStandardize() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ jobId, body }: { jobId: string; body: StandardizeRequest }) =>
+      api.standardize(jobId, body),
+    onSuccess: (result, variables) => {
+      qc.setQueryData(["standardization", variables.jobId], result);
+    },
   });
 }

@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import Settings
-from app.routers import datasets, health, jobs, reports
+from app.routers import datasets, health, jobs, reports, standardization
 from app.services import JobManager, JobNotFoundError, JobStateError, JobStorage
 from app.services.storage import FileTooLargeError
 
@@ -66,7 +66,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def _adip_error(_: Request, exc: ADIPError) -> JSONResponse:
         return error(422, str(exc))
 
-    for module in (health, datasets, jobs, reports):
+    for module in (health, datasets, jobs, standardization, reports):
         app.include_router(module.router)
     return app
 

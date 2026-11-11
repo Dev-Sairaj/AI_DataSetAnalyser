@@ -64,8 +64,11 @@ class ExcelExporter(BaseExporter):
         try:
             wb = Workbook()
             self._summary(wb.active, report)  # type: ignore[arg-type]
+            self._scoring(wb.create_sheet("Quality Scoring"), report)
             self._profile(wb.create_sheet("Profile"), report)
             self._quality(wb.create_sheet("Quality Issues"), report)
+            self._government_mapping(wb.create_sheet("Govt Framework"), report)
+            self._sop(wb.create_sheet("Assessment SOP"), report)
             self._outliers(wb.create_sheet("Outliers"), report)
             self._numeric(wb.create_sheet("Numeric Stats"), report)
             self._categorical(wb.create_sheet("Categorical"), report)
@@ -88,8 +91,11 @@ class ExcelExporter(BaseExporter):
             ("Columns", r.profile.n_cols),
             ("Memory (MB)", round(r.profile.memory_bytes / 1024 / 1024, 2)),
             ("Missing cells (%)", r.profile.missing_pct), ("Duplicate rows", r.profile.duplicate_rows),
+            ("Dataset status", r.quality.status),
+            ("Status explanation", r.quality.status_summary),
             ("Quality score", r.quality.score), ("Quality grade", r.quality.grade),
-            *[(f"  {k}", v) for k, v in r.quality.score_breakdown.items()],
+            ("Score explanation", r.quality.score_explanation),
+            ("Grade explanation", r.quality.grade_explanation),
             ("Target column", r.target or "-"),
             ("Generated", r.generated_at.strftime("%Y-%m-%d %H:%M UTC")),
             ("ADIP version", r.adip_version),
@@ -98,6 +104,67 @@ class ExcelExporter(BaseExporter):
             _put(ws, i, 1, k)
             ws.cell(row=i, column=1).font = Font(bold=True)
             _put(ws, i, 2, v)
+        _autosize(ws)
+
+    @staticmethod
+    def _scoring(ws: Worksheet, r: AnalysisReport) -> None:
+        """Write six-dimension scores, weights, formulas, and limitations.
+
+        Args:
+            ws: Destination workbook worksheet.
+            r: Completed analysis report.
+
+        Returns:
+            None.
+
+        Raises:
+            No exceptions are raised for a validated analysis report.
+        """
+        _table(
+            ws,
+            [
+                "Dimension",
+                "Score",
+                "Assessment",
+                "Configured weight",
+                "Effective weight",
+                "Formula",
+                "Evidence",
+                "Limitation",
+            ],
+            [
+                [
+                    dimension.name,
+                    dimension.score if dimension.score is not None else "Not assessed",
+                    dimension.assessment,
+                    dimension.configured_weight,
+                    dimension.effective_weight,
+                    dimension.formula,
+                    dimension.evidence,
+                    dimension.limitation or "-",
+                ]
+                for dimension in r.quality.dimension_scores
+            ],
+        )
+        note_row = len(r.quality.dimension_scores) + 4
+        _put(ws, note_row, 1, "Overall formula")
+        _put(ws, note_row, 2, r.quality.score_explanation)
+        _put(ws, note_row + 1, 1, "Grade rule")
+        _put(ws, note_row + 1, 2, r.quality.grade_explanation)
+        _put(ws, note_row + 2, 1, "Thresholds")
+        _put(
+            ws,
+            note_row + 2,
+            2,
+            ", ".join(
+                f"{grade} >= {threshold:g}"
+                for grade, threshold in r.quality.grading_thresholds.items()
+                if grade != "F"
+            )
+            + ", else F",
+        )
+        for row in range(note_row, note_row + 3):
+            ws.cell(row=row, column=1).font = Font(bold=True)
         _autosize(ws)
 
     @staticmethod
@@ -111,6 +178,71 @@ class ExcelExporter(BaseExporter):
         _table(ws, ["Severity", "Issue", "Column", "Affected", "Affected %", "Message"],
                [[i.severity, i.code, i.column or "-", i.affected_count, i.affected_pct, i.message]
                 for i in r.quality.issues])
+
+    @staticmethod
+    def _government_mapping(ws: Worksheet, r: AnalysisReport) -> None:
+        """Write implemented and external/manual framework coverage by dimension."""
+        mapping = r.government_framework
+        rows = [
+            [
+                dimension.name,
+                dimension.coverage,
+                dimension.detected_issue_count,
+                ", ".join(dimension.detected_issue_codes) or "-",
+                "; ".join(dimension.implemented_checks) or "None automated",
+                "; ".join(dimension.external_or_manual_checks),
+                dimension.explanation,
+            ]
+            for dimension in mapping.dimensions
+        ]
+        _table(
+            ws,
+            [
+                "Dimension",
+                "Coverage",
+                "Findings",
+                "Issue codes",
+                "Implemented checks",
+                "External/manual checks",
+                "Explanation",
+            ],
+            rows,
+        )
+        note_row = len(rows) + 4
+        _put(ws, note_row, 1, "Disclaimer")
+        ws.cell(row=note_row, column=1).font = Font(bold=True)
+        _put(ws, note_row, 2, mapping.disclaimer)
+        _autosize(ws)
+
+    @staticmethod
+    def _sop(ws: Worksheet, r: AnalysisReport) -> None:
+        """Write the complete assessment SOP as an auditable worksheet."""
+        _table(
+            ws,
+            [
+                "Step",
+                "Stage",
+                "Purpose",
+                "Input",
+                "Method",
+                "Output",
+                "Automation",
+                "Testing criteria",
+            ],
+            [
+                [
+                    stage.step,
+                    stage.name,
+                    stage.purpose,
+                    stage.input,
+                    stage.method,
+                    stage.output,
+                    stage.automation,
+                    "; ".join(stage.testing_criteria),
+                ]
+                for stage in r.sop.stages
+            ],
+        )
 
     @staticmethod
     def _outliers(ws: Worksheet, r: AnalysisReport) -> None:

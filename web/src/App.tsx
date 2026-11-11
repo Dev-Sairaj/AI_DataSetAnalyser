@@ -6,6 +6,8 @@ import ExportPage from "./pages/ExportPage";
 import FeaturesPage from "./pages/FeaturesPage";
 import OverviewPage from "./pages/OverviewPage";
 import QualityPage from "./pages/QualityPage";
+import StandardizePage from "./pages/StandardizePage";
+import SopPage from "./pages/SopPage";
 import UploadPage from "./pages/UploadPage";
 
 export default function App() {
@@ -19,6 +21,8 @@ export default function App() {
           <Route path="quality" element={<QualityPage />} />
           <Route path="eda" element={<EdaPage />} />
           <Route path="features" element={<FeaturesPage />} />
+          <Route path="standardize" element={<StandardizePage />} />
+          <Route path="sop" element={<SopPage />} />
           <Route path="export" element={<ExportPage />} />
         </Route>
       </Route>

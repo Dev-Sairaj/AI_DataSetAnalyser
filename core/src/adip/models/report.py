@@ -12,8 +12,10 @@ from adip.models.eda import (
     HistogramData,
 )
 from adip.models.features import FeatureReport
+from adip.models.governance import GovernmentFrameworkMapping
 from adip.models.profile import DatasetProfile
 from adip.models.quality import QualityReport
+from adip.models.sop import AssessmentSOP
 
 
 class MissingBar(BaseModel):
@@ -43,5 +45,7 @@ class AnalysisReport(BaseModel):
     quality: QualityReport
     eda: EdaReport
     features: FeatureReport
+    government_framework: GovernmentFrameworkMapping
+    sop: AssessmentSOP
     charts: ChartData
     config: dict[str, Any] = Field(default_factory=dict)

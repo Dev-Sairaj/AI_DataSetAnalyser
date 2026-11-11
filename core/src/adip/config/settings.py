@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from adip.exceptions import ConfigError
 
@@ -32,11 +32,71 @@ class QualityConfig(_Strict):
     high_cardinality_min_unique: int = Field(50, gt=0)
 
 
+class DimensionWeights(_Strict):
+    """Configured relative importance of the six data-quality dimensions."""
+
+    accuracy: float = Field(0.20, ge=0)
+    completeness: float = Field(0.20, ge=0)
+    consistency: float = Field(0.15, ge=0)
+    timeliness: float = Field(0.10, ge=0)
+    validity: float = Field(0.20, ge=0)
+    uniqueness: float = Field(0.15, ge=0)
+
+    @model_validator(mode="after")
+    def _require_positive_total(self) -> "DimensionWeights":
+        """Reject a configuration that gives no dimension any influence."""
+        if sum(self.model_dump().values()) <= 0:
+            raise ValueError("At least one quality dimension weight must be greater than zero.")
+        return self
+
+
+class GradeThresholds(_Strict):
+    """Minimum inclusive overall scores for grades A through D."""
+
+    a: float = Field(90.0, ge=0, le=100)
+    b: float = Field(80.0, ge=0, le=100)
+    c: float = Field(70.0, ge=0, le=100)
+    d: float = Field(60.0, ge=0, le=100)
+
+    @model_validator(mode="after")
+    def _require_descending_thresholds(self) -> "GradeThresholds":
+        """Ensure grades form strict, non-overlapping descending bands."""
+        if not self.a > self.b > self.c > self.d:
+            raise ValueError("Grade thresholds must satisfy A > B > C > D.")
+        return self
+
+
+class ScoringConfig(_Strict):
+    """Configurable weighting and grading policy for overall dataset quality."""
+
+    weights: DimensionWeights = DimensionWeights()
+    thresholds: GradeThresholds = GradeThresholds()
+    unassessed_dimension_policy: Literal["renormalize"] = "renormalize"
+
+    @model_validator(mode="after")
+    def _require_automated_weight(self) -> "ScoringConfig":
+        """Require weight on a dimension available for every valid dataset."""
+        always_assessed = (
+            self.weights.completeness
+            + self.weights.consistency
+            + self.weights.validity
+            + self.weights.uniqueness
+        )
+        if always_assessed <= 0:
+            raise ValueError(
+                "At least one of completeness, consistency, validity, or uniqueness "
+                "must have a positive weight."
+            )
+        return self
+
+
 class EdaConfig(_Strict):
     sample_size: int = Field(50_000, gt=0)
     correlation_threshold: float = Field(0.85, gt=0, le=1)
     max_categories_shown: int = Field(15, gt=0)
     histogram_bins: int = Field(30, gt=0)
+
+
 class FeaturesConfig(_Strict):
     id_unique_pct: float = Field(99.5, gt=0, le=100)
     onehot_max_unique: int = Field(10, gt=1)
@@ -47,11 +107,28 @@ class FeaturesConfig(_Strict):
     max_correlation_recommendations: int = Field(20, gt=0)
 
 
+class FixesConfig(_Strict):
+    # A step that removes more than this share of the ORIGINAL rows gets a warning.
+    max_row_loss_pct: float = Field(20.0, gt=0, le=100)
+    # one_hot skips any column with more distinct values than this.
+    one_hot_max_categories: int = Field(50, gt=1)
+
+
+class InsightsConfig(_Strict):
+    enabled: bool = False  # AI is opt-in; the rule-based path never needs it
+    providers: list[str] = Field(
+        default_factory=lambda: ["gemini", "groq", "openrouter", "mistral", "ollama"]
+    )  # fallback order, first provider is tried first
+
+
 class ADIPConfig(_Strict):
     loader: LoaderConfig = LoaderConfig()
     quality: QualityConfig = QualityConfig()
+    scoring: ScoringConfig = ScoringConfig()
     eda: EdaConfig = EdaConfig()
     features: FeaturesConfig = FeaturesConfig()
+    fixes: FixesConfig = FixesConfig()
+    insights: InsightsConfig = InsightsConfig()
 
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:

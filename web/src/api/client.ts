@@ -4,6 +4,8 @@ import type {
   InspectResponse,
   JobRecord,
   RunRequest,
+  StandardizationResponse,
+  StandardizeRequest,
   UploadResponse,
 } from "../types/api";
 
@@ -59,6 +61,17 @@ export const api = {
   job: (jobId: string) => request<JobRecord>(`/api/jobs/${jobId}`),
   jobs: () => request<JobRecord[]>("/api/jobs"),
   result: (jobId: string) => request<AnalysisReport>(`/api/jobs/${jobId}/result`),
+  standardization: (jobId: string) =>
+    request<StandardizationResponse>(`/api/jobs/${jobId}/standardization`),
+  standardize(jobId: string, body: StandardizeRequest) {
+    return request<StandardizationResponse>(`/api/jobs/${jobId}/standardize`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  },
+  standardizedDownloadUrl: (jobId: string) => `/api/jobs/${jobId}/downloads/standardized`,
+  finalDatasetDownloadUrl: (jobId: string) => `/api/jobs/${jobId}/downloads/final-dataset`,
   remove: (jobId: string) => request<void>(`/api/jobs/${jobId}`, { method: "DELETE" }),
   downloadUrl: (jobId: string, fmt: ExportFormat, inline = false) =>
     `/api/jobs/${jobId}/downloads/${fmt}${inline ? "?inline=true" : ""}`,

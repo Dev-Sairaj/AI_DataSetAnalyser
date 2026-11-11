@@ -25,6 +25,17 @@ class ReportExportError(ADIPError):
     """A report could not be generated or written."""
 
 
-
 class TargetColumnError(ADIPError):
     """The requested target column does not exist in the dataset."""
+
+
+class FixError(ADIPError):
+    """The fix pipeline could not complete."""
+
+
+class FixPlanError(FixError):
+    """A fix plan is malformed (duplicate step ids, bad structure)."""
+
+
+class UnknownFixError(FixPlanError):
+    """A plan step names a fix that is not in the registry."""
